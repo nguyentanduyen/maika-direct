@@ -1,0 +1,86 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Đăng nhập MAIKA",
+        "description": "Dùng số điện thoại hoặc email + mật khẩu của app MAIKA (tài khoản chỉ đăng nhập Google cần đặt mật khẩu MAIKA trước).",
+        "data": {
+          "login": "Số điện thoại hoặc email",
+          "password": "Mật khẩu MAIKA"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Đăng nhập lại MAIKA",
+        "description": "Nhập lại mật khẩu cho {login}.",
+        "data": {
+          "password": "Mật khẩu MAIKA"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Sai tài khoản hoặc mật khẩu",
+      "cannot_connect": "Không kết nối được cloud MAIKA"
+    },
+    "abort": {
+      "already_configured": "Tài khoản này đã được thêm",
+      "reauth_successful": "Đăng nhập lại thành công"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Tùy chọn MAIKA Direct",
+        "description": "Địa chỉ LAN để loa tải file/TTS từ Home Assistant, ví dụ http://192.168.1.20:8123. Để trống nếu URL nội bộ của HA đã đúng.",
+        "data": {
+          "media_base_url": "Địa chỉ Home Assistant cho loa",
+          "scan_interval": "Chu kỳ làm mới (giây)"
+        }
+      }
+    },
+    "error": {
+      "invalid_url": "URL phải bắt đầu bằng http:// hoặc https://"
+    }
+  },
+  "entity": {
+    "switch": {
+      "mic_mute": {
+        "name": "Tắt micro"
+      }
+    },
+    "button": {
+      "refresh": {
+        "name": "Làm mới"
+      }
+    },
+    "sensor": {
+      "firmware": {
+        "name": "Firmware"
+      },
+      "wifi_ssid": {
+        "name": "Wi-Fi"
+      },
+      "last_command": {
+        "name": "Câu lệnh gần nhất"
+      },
+      "last_response": {
+        "name": "Phản hồi gần nhất"
+      }
+    }
+  },
+  "services": {
+    "send_text": {
+      "name": "Gửi câu lệnh tới loa",
+      "description": "Loa xử lý câu chữ như thể vừa nghe bạn nói (vd: 'bật nhạc', 'thời tiết hôm nay').",
+      "fields": {
+        "entity_id": {
+          "name": "Loa",
+          "description": "Media player MAIKA"
+        },
+        "text": {
+          "name": "Câu lệnh",
+          "description": "Nội dung muốn nói với loa"
+        }
+      }
+    }
+  }
+}

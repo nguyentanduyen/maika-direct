@@ -1,0 +1,14 @@
+send_text:
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          integration: maika_direct
+          domain: media_player
+          multiple: true
+    text:
+      required: true
+      example: "bật nhạc Trịnh Công Sơn"
+      selector:
+        text:
