@@ -426,6 +426,14 @@ class MaikaClient:
                     raise MaikaConnectionError(f"Command HTTP {resp.status}", resp.status)
         except (aiohttp.ClientError, TimeoutError) as err:
             raise MaikaConnectionError("Cannot send MAIKA command") from err
+        _LOGGER.debug(
+            "MAIKA /stream %s/%s -> HTTP %s, %d bytes: %r",
+            meta.get("event", {}).get("header", {}).get("namespace"),
+            meta.get("event", {}).get("header", {}).get("name"),
+            resp.status,
+            len(body),
+            body[:300],
+        )
         if body:
             try:
                 result = json.loads(body.decode("utf-8"))
@@ -471,15 +479,12 @@ class MaikaClient:
             "GetDeviceInfo", "ClientInformation", {"deviceId": serial, "fields": DEVICE_INFO_FIELDS}
         )
 
-    async def async_start_listening(self, serial: str) -> None:
-        await self.async_command(
-            "StartListening", "Conversation", {"deviceId": serial, "type": "conversation"}
-        )
+    async def async_start_listening(self, serial: str, kind: str = "conversation") -> None:
+        """kind: conversation (voice mirror) or media_control (playback events)."""
+        await self.async_command("StartListening", "Conversation", {"deviceId": serial, "type": kind})
 
-    async def async_stop_listening(self, serial: str) -> None:
-        await self.async_command(
-            "StopListening", "Conversation", {"deviceId": serial, "type": "conversation"}
-        )
+    async def async_stop_listening(self, serial: str, kind: str = "conversation") -> None:
+        await self.async_command("StopListening", "Conversation", {"deviceId": serial, "type": kind})
 
     async def async_send_text(self, serial: str, text: str) -> None:
         """Make the speaker handle `text` as if it had heard it."""

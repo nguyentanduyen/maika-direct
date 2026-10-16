@@ -24,7 +24,7 @@ TTS/URL casting and a sidebar management panel. API reference: [docs/API.md](doc
 
 | Nhóm | Chi tiết |
 |---|---|
-| **Media player** | Âm lượng, tắt tiếng, phát/tạm dừng, bài trước/tiếp, phát URL MP3, TTS và file trong Media của HA (thử nghiệm) |
+| **Media player** | Âm lượng, tắt tiếng, phát/tạm dừng, bài trước/tiếp, phát URL MP3, TTS và file trong Media của HA |
 | **Điều khiển** | Công tắc tắt micro, nút khởi động lại loa, nút làm mới |
 | **Giọng nói → HA** | Cảm biến *Câu lệnh gần nhất*, *Phản hồi gần nhất*; event `maika_direct_voice_command` để viết automation |
 | **HA → giọng nói** | Action `maika_direct.send_text`: loa xử lý câu chữ như vừa nghe bạn nói |
@@ -138,8 +138,9 @@ Assistant (mặc định `8097`) trong LAN. Tính năng này **thử nghiệm**.
 
 ## Giới hạn đã biết
 
-- Cast âm thanh (`CommandHandOver`) dựa trên phân tích app, **chưa được kiểm chứng rộng rãi**
-  trên mọi firmware. Định dạng luôn khai báo `AUDIO_MPEG`; MP3 ổn định nhất.
+- Cast âm thanh (`CommandHandOver`) đã chạy trên MK100B firmware 2.64 (TTS và MP3 qua HTTP/HTTPS).
+  Loa nạp bài ở trạng thái tạm dừng, integration tự gửi lệnh phát tiếp sau ~3–6 giây. Phát lại
+  **đúng URL cũ** sẽ tiếp tục từ vị trí đã dừng. Định dạng luôn khai báo `AUDIO_MPEG`.
 - Không có lệnh *Stop* riêng – nút dừng = tạm dừng.
 - Không có tua theo giây, không đổi playlist trên loa.
 - Câu phản hồi của loa (`SpeechSynthesizer`) có thể không phải lúc nào cũng được cloud gửi về.

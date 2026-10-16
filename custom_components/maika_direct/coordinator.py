@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import time
 from copy import deepcopy
@@ -69,6 +70,9 @@ class MaikaCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             self._listening_registered = True
             for serial in result:
                 self.hass.async_create_task(self._safe(self.client.async_start_listening(serial)))
+                self.hass.async_create_task(
+                    self._safe(self.client.async_start_listening(serial, "media_control"))
+                )
         return result
 
     async def _safe(self, coro: Any) -> None:
@@ -80,6 +84,40 @@ class MaikaCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
     async def async_refresh_live(self, serial: str, delay: float = 1.5) -> None:
         await asyncio.sleep(delay)
         await self._safe(self.client.async_request_info(serial))
+
+    async def async_cast(self, serial: str, url: str, title: str | None = None) -> None:
+        """Cast a URL and make sure the speaker actually starts playing.
+
+        Observed on firmware 2.64: when the speaker already has the same URL loaded
+        and paused, CommandHandOver only re-selects it and stays paused. We poll the
+        live state briefly and send Resume if the new URL is loaded but not playing.
+        """
+        await self.client.async_cast(serial, url, title)
+        cp = {
+            "status": "start",
+            "payload": {"offsetInMilliseconds": 0, "playbackAttributes": {"url": url, "title": title}},
+        }
+        self.async_patch(serial, {"current_playback": cp})
+        self.hass.async_create_task(self._ensure_playing(serial, url))
+
+    async def _ensure_playing(self, serial: str, url: str) -> None:
+        for delay in (2.5, 4.0):
+            await asyncio.sleep(delay)
+            # drop the optimistic value so we judge the speaker's real report
+            self.live.get(serial, {}).pop("current_playback", None)
+            await self._safe(self.client.async_request_info(serial))
+            await asyncio.sleep(1.5)
+            cp = (self.live.get(serial) or {}).get("current_playback")
+            if not isinstance(cp, dict):
+                continue
+            status = str(cp.get("status") or "").lower()
+            attrs = (cp.get("payload") or {}).get("playbackAttributes") or {}
+            if status in {"start", "started", "resume", "resumed", "playing", "play"}:
+                return
+            if attrs.get("url") == url and status in {"pause", "paused", "stop", "stopped", "idle"}:
+                _LOGGER.debug("MAIKA %s loaded the cast URL but is %s; sending Resume", serial, status)
+                await self._safe(self.client.async_playback(serial, "Resume"))
+                return
 
     @callback
     def async_patch(self, serial: str, changes: dict[str, Any]) -> None:
@@ -98,6 +136,8 @@ class MaikaCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
 
     @callback
     def _on_frame(self, frame: dict[str, Any]) -> None:
+        if _LOGGER.isEnabledFor(logging.DEBUG):
+            _LOGGER.debug("MAIKA frame: %s", json.dumps(frame, ensure_ascii=False)[:2000])
         header = frame.get("header")
         if not isinstance(header, dict):
             # connection handshake: (re)register conversation mirroring
@@ -108,6 +148,9 @@ class MaikaCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                     for serial in self.data:
                         self.hass.async_create_task(
                             self._safe(self.client.async_start_listening(serial))
+                        )
+                        self.hass.async_create_task(
+                            self._safe(self.client.async_start_listening(serial, "media_control"))
                         )
             return
         payload = frame.get("payload") if isinstance(frame.get("payload"), dict) else {}

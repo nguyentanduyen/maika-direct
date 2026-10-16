@@ -268,7 +268,7 @@ async def ws_cast(hass: HomeAssistant, connection, msg) -> None:
         return
     _, coord = _find(hass, msg["serial"])
     try:
-        await coord.client.async_cast(msg["serial"], url)
+        await coord.async_cast(msg["serial"], url)
     except MaikaError as err:
         connection.send_error(msg["id"], "maika_error", str(err))
         return

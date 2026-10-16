@@ -199,7 +199,7 @@ Các directive được xử lý:
 | Directive | Dùng cho |
 |---|---|
 | `ClientInformation / DeviceInfo` | Âm lượng, `mute` (micro), `current_playback`, `latest_playlist` |
-| `header.type = speakerConversationResponse`, `header.rawSpeech` | Câu người dùng vừa nói → sensor + event `maika_direct_voice_command` (chống trùng 5 phút theo `messageId`) |
+| `header.type = speakerConversationResponse`, `header.rawSpeech` | Câu người dùng vừa nói → sensor + event `maika_direct_voice_command` (chống trùng 5 phút theo `messageId`). Header còn có `namespace`/`name` của hành động loa chọn, ví dụ "tắt đi" → `PlaybackController / PauseCommandIssued` |
 | namespace `SpeechSynthesizer` / `TextToSpeech` có `text` | Câu loa trả lời → sensor + event `maika_direct_speaker_response` |
 
 Để cloud gửi `speakerConversationResponse`, integration gửi `Conversation/StartListening`
@@ -218,7 +218,7 @@ cho từng loa sau mỗi lần bắt tay `/connect`, và `StopListening` khi g�
 | Bài trước | `PlaybackController` / `PreviousCommandIssued` | `deviceId` |
 | Khởi động lại | `SystemControl` / `Reboot` | `toDeviceId` |
 | Lấy trạng thái | `ClientInformation` / `GetDeviceInfo` | `deviceId`, `fields`: `current_playback,volume,latest_playlist,device_id,mute` |
-| Bắt đầu nghe hội thoại | `Conversation` / `StartListening` | `deviceId`, `type`: `conversation` |
+| Bắt đầu nghe hội thoại | `Conversation` / `StartListening` | `deviceId`, `type`: `conversation` hoặc `media_control` |
 | Dừng nghe hội thoại | `Conversation` / `StopListening` | `deviceId`, `type`: `conversation` |
 | Gửi câu chữ | `SpeechRecognizer` / `Recognize` | không có payload; `header.rawSpeech` = câu chữ |
 | Phát URL | `SystemControl` / `CommandHandOver` | xem dưới |
@@ -247,6 +247,20 @@ cho từng loa sau mỗi lần bắt tay `/connect`, và `StopListening` khi g�
 ```
 Loa **tự tải** `url`, nên URL phải truy cập được từ loa (LAN hoặc Internet). Chỉ link đi
 qua cloud, nội dung âm thanh không đi qua cloud MAIKA.
+
+**Hành vi quan sát được (MK100B, firmware 2.64):** sau `CommandHandOver`, `DeviceInfo` báo
+`current_playback.status = "paused"` với `playbackAttributes.url` = URL mới – loa đã nạp nhưng
+chưa phát. Gửi `PlaybackController / ResumeCommandIssued` thì loa phát (`status = "start"`).
+Nếu URL trùng bài đang tạm dừng, loa tiếp tục từ `offsetInMilliseconds` cũ.
+
+Ví dụ `DeviceInfo` sau khi cast:
+```json
+{"header": {"namespace": "ClientInformation", "name": "DeviceInfo"},
+ "payload": {"device_id": "A0123456789", "volume": 70, "mute": false,
+   "current_playback": {"status": "paused", "payload": {
+     "playbackAttributes": {"url": "http://192.168.1.20:8123/api/tts_proxy/….mp3", "type": "audio", "format": "AUDIO_MPEG"},
+     "offsetInMilliseconds": "0"}}}}
+```
 
 ## Websocket nội bộ của integration
 

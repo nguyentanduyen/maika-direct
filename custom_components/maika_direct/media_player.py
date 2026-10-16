@@ -196,8 +196,10 @@ class MaikaMediaPlayer(MaikaEntity, MediaPlayerEntity):
             meta = extra.get("metadata") if isinstance(extra.get("metadata"), dict) else {}
             title = meta.get("title") or extra.get("title")
         _LOGGER.debug("Casting %s to MAIKA %s", media_id, self.serial)
-        await self._run(self.coordinator.client.async_cast(self.serial, media_id, title))
-        await self._set_status("start")
+        try:
+            await self.coordinator.async_cast(self.serial, media_id, title)
+        except MaikaError as err:
+            raise HomeAssistantError(f"MAIKA: {err}") from err
 
     def _rewrite_for_speaker(self, url: str) -> str:
         """Point HA-hosted URLs at an address the speaker can reach on the LAN."""
@@ -213,8 +215,13 @@ class MaikaMediaPlayer(MaikaEntity, MediaPlayerEntity):
         internal_host = (urlsplit(self.hass.config.internal_url or "").hostname or "").lower()
         # Only rewrite URLs that point at *this* Home Assistant (its port / names),
         # never third-party LAN servers such as Music Assistant on :8097.
-        is_ha = host in own or (internal_host and host == internal_host) or (
-            parts.port == ha_port and _is_container_ip(host)
+        # Any URL on HA's own port is HA itself (Docker/OrbStack bridge IPs such as
+        # 172.17.x or 192.168.97.x are not reachable from the speaker).
+        is_ha = (
+            host in own
+            or (internal_host and host == internal_host)
+            or parts.port == ha_port
+            or (_is_container_ip(host) and parts.port is None)
         )
         if is_ha:
             return urlunsplit((base.scheme, base.netloc, parts.path, parts.query, parts.fragment))
@@ -231,5 +238,5 @@ def _is_container_ip(host: str) -> bool:
         return False
     return any(
         ip in ipaddress.ip_network(net)
-        for net in ("172.17.0.0/16", "172.18.0.0/15", "172.20.0.0/14", "192.168.215.0/24", "198.19.0.0/16")
+        for net in ("172.17.0.0/16", "172.18.0.0/15", "172.20.0.0/14", "192.168.97.0/24", "192.168.215.0/24", "198.19.0.0/16")
     )
