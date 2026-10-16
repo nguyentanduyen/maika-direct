@@ -177,7 +177,7 @@ class MaikaDirectPanel extends HTMLElement {
             <div class="quick">${QUICK.map((q) => `<button class="tag" data-quick="${esc(q)}">${esc(q)}</button>`).join("")}</div>
             <div id="chat-status" class="status"></div>
             <div class="log">
-              <div class="log-item"><div class="muted small">Bạn nói gần nhất</div><div id="last-cmd">–</div><div id="last-cmd-t" class="muted small"></div></div>
+              <div class="log-item"><div class="muted small">Bạn nói gần nhất</div><div id="last-cmd">–</div><div id="last-cmd-t" class="muted small"></div><div id="last-assist" class="assist" hidden></div></div>
               <div class="log-item"><div class="muted small">Loa trả lời gần nhất</div><div id="last-resp">–</div><div id="last-resp-t" class="muted small"></div></div>
             </div>
           </section>
@@ -226,6 +226,18 @@ class MaikaDirectPanel extends HTMLElement {
                 <span class="muted small">IP LAN của máy chạy Home Assistant. Bắt buộc khi HA chạy Docker (URL nội bộ là localhost/172.x).</span>
               </label>
               <label>Chu kỳ làm mới (giây)<input name="scan_interval" type="number" min="15" max="3600" /></label>
+              <div class="subhead">Điều khiển nhà bằng giọng nói</div>
+              <label class="check"><input name="assist_forward" type="checkbox" />
+                <span>Chuyển câu nói với loa sang <b>Assist</b> của Home Assistant
+                <span class="muted small">Thiết bị phải bật "chia sẻ với Assist" (Cài đặt → Trợ lý giọng nói → Chia sẻ).</span></span>
+              </label>
+              <label>Từ mở đầu (tuỳ chọn)
+                <input name="assist_prefix" placeholder="để trống = mọi câu, VD: nhà ơi" />
+                <span class="muted small">Chỉ câu bắt đầu bằng từ này mới gửi sang Assist (phần còn lại là lệnh).</span>
+              </label>
+              <label>Đọc kết quả lên loa bằng TTS
+                <select name="assist_tts"><option value="">(không đọc)</option></select>
+              </label>
               <div class="kv"><span class="muted">Tài khoản</span><span id="acc-title">–</span></div>
               <div class="kv"><span class="muted">Serial</span><span id="acc-serial">–</span></div>
               <div class="form-actions">
@@ -334,6 +346,13 @@ class MaikaDirectPanel extends HTMLElement {
 
     this.$("#last-cmd").textContent = sp.last_command?.text || "–";
     this.$("#last-cmd-t").textContent = ago(sp.last_command?.time);
+    const a = sp.last_command?.assist;
+    const la = this.$("#last-assist");
+    la.hidden = !a;
+    if (a) {
+      la.className = `assist ${a.success ? "ok" : "bad"}`;
+      la.textContent = `Assist: ${a.success ? "✓" : "✗"} ${a.speech || a.type}`;
+    }
     this.$("#last-resp").textContent = sp.last_response?.text || "–";
     this.$("#last-resp-t").textContent = ago(sp.last_response?.time);
 
@@ -348,6 +367,15 @@ class MaikaDirectPanel extends HTMLElement {
       this._optsFilled = true;
       this._field("#opt-form", "media_base_url").value = acc.options.media_base_url || "";
       this._field("#opt-form", "scan_interval").value = acc.options.scan_interval;
+      this._field("#opt-form", "assist_forward").checked = !!acc.options.assist_forward;
+      this._field("#opt-form", "assist_prefix").value = acc.options.assist_prefix || "";
+      const ttsSel = this._field("#opt-form", "assist_tts");
+      ttsSel.innerHTML =
+        `<option value="">(không đọc)</option>` +
+        (acc.tts_entities || [])
+          .map((id) => `<option value="${esc(id)}">${esc(this._hass.states[id]?.attributes?.friendly_name || id)}</option>`)
+          .join("");
+      ttsSel.value = acc.options.assist_tts || "";
     }
   }
 
@@ -490,8 +518,12 @@ class MaikaDirectPanel extends HTMLElement {
         entry_id: sp.account.entry_id,
         media_base_url: this._field("#opt-form", "media_base_url").value.trim(),
         scan_interval: Number(this._field("#opt-form", "scan_interval").value) || 60,
+        assist_forward: this._field("#opt-form", "assist_forward").checked,
+        assist_prefix: this._field("#opt-form", "assist_prefix").value.trim(),
+        assist_tts: this._field("#opt-form", "assist_tts").value,
       });
       this._flash("#opt-status", "Đã lưu, đang tải lại tích hợp…");
+      this._optsFilled = false;
       setTimeout(() => this._loadInfo(), 4000);
     } catch (e) {
       this._flash("#opt-status", e.message || String(e), false);
@@ -603,6 +635,12 @@ label { display: grid; gap: 6px; font-size: 13px; color: var(--secondary-text-co
 section > label { margin: 12px 0 6px; }
 .form-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 4px; }
 .form-actions .status { margin: 0; }
+.subhead { margin-top: 6px; font-weight: 600; color: var(--primary-text-color); font-size: 14px; }
+label.check { display: flex; gap: 10px; align-items: flex-start; }
+label.check input { width: auto; margin-top: 3px; accent-color: var(--mk); }
+label.check span { display: grid; gap: 4px; color: var(--primary-text-color); }
+.assist { margin-top: 6px; font-size: 13px; }
+.assist.ok { color: var(--success-color, #43a047); } .assist.bad { color: var(--secondary-text-color); }
 .kv { display: flex; justify-content: space-between; font-size: 13px; gap: 8px; }
 .kv span:last-child { text-align: right; word-break: break-all; }
 @media (max-width: 600px) { main { padding: 10px; } .hero { grid-row: auto; } }

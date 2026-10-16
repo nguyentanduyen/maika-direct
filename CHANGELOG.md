@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0 – 2026-10-16
+- **Điều khiển nhà bằng giọng nói qua Assist**: tuỳ chọn chuyển câu nói với loa sang Assist của Home
+  Assistant (tiếng Việt), hỗ trợ *từ mở đầu* (chỉ câu bắt đầu bằng từ này mới gửi) và đọc kết quả
+  lên loa bằng TTS. Bật trong panel MAIKA → Cấu hình tích hợp.
+- Event mới `maika_direct_assist_result`; sensor *Câu lệnh gần nhất* có thuộc tính `assist`.
+- Lưu tuỳ chọn không còn ghi đè các tuỳ chọn khác.
+
 ## 0.3.1 – 2026-10-16
 - **Phát URL/TTS đã kiểm chứng trên loa thật** (MK100B, firmware 2.64): sau `CommandHandOver` loa
   nạp bài ở trạng thái *paused*; integration tự đọc lại trạng thái và gửi `ResumeCommandIssued`.

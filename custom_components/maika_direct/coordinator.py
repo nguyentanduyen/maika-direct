@@ -11,12 +11,20 @@ from datetime import timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import Context, HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import MaikaAuthError, MaikaClient, MaikaError, find_device_payload, normalize_device
-from .const import DOMAIN, EVENT_SPEAKER_RESPONSE, EVENT_VOICE_COMMAND
+from .const import (
+    CONF_ASSIST_FORWARD,
+    CONF_ASSIST_PREFIX,
+    CONF_ASSIST_TTS,
+    DOMAIN,
+    EVENT_ASSIST_RESULT,
+    EVENT_SPEAKER_RESPONSE,
+    EVENT_VOICE_COMMAND,
+)
 
 _LOGGER = logging.getLogger(__name__)
 LIVE_FIELDS = ("volume", "mute", "current_playback", "latest_playlist")
@@ -176,6 +184,8 @@ class MaikaCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                 EVENT_VOICE_COMMAND, {"device_id": serial, "text": text.strip()}
             )
             self.async_update_listeners()
+            if self.config_entry.options.get(CONF_ASSIST_FORWARD):
+                self.hass.async_create_task(self._forward_to_assist(serial, text.strip(), info))
             return
 
         if namespace in ("SpeechSynthesizer", "TextToSpeech"):
@@ -188,6 +198,60 @@ class MaikaCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                     EVENT_SPEAKER_RESPONSE, {"device_id": serial, "text": text.strip()}
                 )
                 self.async_update_listeners()
+
+    async def _forward_to_assist(self, serial: str | None, text: str, info: dict[str, Any]) -> None:
+        """Send what the user told the speaker to Home Assistant Assist (vi)."""
+        from homeassistant.components import conversation
+
+        opts = self.config_entry.options
+        prefix = (opts.get(CONF_ASSIST_PREFIX) or "").strip().lower()
+        query = text
+        if prefix:
+            if not text.lower().startswith(prefix):
+                return
+            query = text[len(prefix):].strip(" ,.")
+            if not query:
+                return
+        try:
+            result = await conversation.async_converse(
+                self.hass, query, None, Context(), language="vi"
+            )
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.warning("Assist failed for MAIKA command %r: %s", query, err)
+            return
+        resp = result.response
+        rtype = getattr(resp.response_type, "value", str(resp.response_type))
+        speech = ((resp.speech or {}).get("plain") or {}).get("speech", "")
+        ok = rtype in ("action_done", "query_answer")
+        info["assist"] = {"query": query, "type": rtype, "speech": speech, "success": ok}
+        _LOGGER.debug("Assist for %r -> %s: %s", query, rtype, speech)
+        self.hass.bus.async_fire(
+            EVENT_ASSIST_RESULT,
+            {"device_id": serial, "text": query, "response_type": rtype, "speech": speech, "success": ok},
+        )
+        self.async_update_listeners()
+        tts_entity = opts.get(CONF_ASSIST_TTS)
+        if ok and tts_entity and speech and serial:
+            player = self._media_player_entity(serial)
+            if player:
+                await self.hass.services.async_call(
+                    "tts",
+                    "speak",
+                    {
+                        "entity_id": tts_entity,
+                        "media_player_entity_id": player,
+                        "message": speech,
+                        "language": "vi-VN" if "cloud" in tts_entity else "vi",
+                    },
+                    blocking=False,
+                )
+
+    def _media_player_entity(self, serial: str) -> str | None:
+        from homeassistant.helpers import entity_registry as er
+
+        return er.async_get(self.hass).async_get_entity_id(
+            "media_player", DOMAIN, f"{serial}__media_player"
+        )
 
     def _merge_live(self, dev: dict[str, Any]) -> None:
         serial = dev["device_id"]

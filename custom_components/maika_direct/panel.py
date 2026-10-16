@@ -16,7 +16,15 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 
 from .api import WRITABLE_FIELDS, MaikaError
-from .const import CONF_MEDIA_BASE_URL, CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL, DOMAIN
+from .const import (
+    CONF_ASSIST_FORWARD,
+    CONF_ASSIST_PREFIX,
+    CONF_ASSIST_TTS,
+    CONF_MEDIA_BASE_URL,
+    CONF_SCAN_INTERVAL,
+    DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -133,7 +141,11 @@ def ws_info(hass: HomeAssistant, connection, msg) -> None:
                 "options": {
                     CONF_MEDIA_BASE_URL: entry.options.get(CONF_MEDIA_BASE_URL, ""),
                     CONF_SCAN_INTERVAL: entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+                    CONF_ASSIST_FORWARD: bool(entry.options.get(CONF_ASSIST_FORWARD, False)),
+                    CONF_ASSIST_PREFIX: entry.options.get(CONF_ASSIST_PREFIX, ""),
+                    CONF_ASSIST_TTS: entry.options.get(CONF_ASSIST_TTS, ""),
                 },
+                "tts_entities": sorted(hass.states.async_entity_ids("tts")),
                 "speakers": speakers,
             }
         )
@@ -216,6 +228,9 @@ async def ws_set_settings(hass: HomeAssistant, connection, msg) -> None:
         vol.Required("entry_id"): str,
         vol.Required(CONF_MEDIA_BASE_URL): str,
         vol.Required(CONF_SCAN_INTERVAL): vol.All(vol.Coerce(int), vol.Range(min=15, max=3600)),
+        vol.Optional(CONF_ASSIST_FORWARD): bool,
+        vol.Optional(CONF_ASSIST_PREFIX): str,
+        vol.Optional(CONF_ASSIST_TTS): str,
     }
 )
 @callback
@@ -230,7 +245,17 @@ def ws_set_options(hass: HomeAssistant, connection, msg) -> None:
         return
     # triggers the update listener -> entry reload
     hass.config_entries.async_update_entry(
-        entry, options={CONF_MEDIA_BASE_URL: base, CONF_SCAN_INTERVAL: msg[CONF_SCAN_INTERVAL]}
+        entry,
+        options={
+            **entry.options,
+            CONF_MEDIA_BASE_URL: base,
+            CONF_SCAN_INTERVAL: msg[CONF_SCAN_INTERVAL],
+            **{
+                k: (msg[k].strip() if isinstance(msg[k], str) else msg[k])
+                for k in (CONF_ASSIST_FORWARD, CONF_ASSIST_PREFIX, CONF_ASSIST_TTS)
+                if k in msg
+            },
+        },
     )
     connection.send_result(msg["id"], {"ok": True})
 

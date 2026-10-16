@@ -79,6 +79,31 @@ Mở **MAIKA** trên sidebar → khối **Cấu hình tích hợp** (hoặc nút
 
 `<loa>` lấy từ tên loa lúc thêm tích hợp (ví dụ serial `a0123456789`); tên hiển thị theo ngôn ngữ HA.
 
+## Điều khiển nhà bằng giọng nói (Assist)
+
+Bật **MAIKA → Cấu hình tích hợp → Chuyển câu nói với loa sang Assist**. Mỗi câu bạn nói với loa
+(ví dụ *"Maika ơi, bật đèn hành lang"*) được gửi sang Assist tiếng Việt của Home Assistant; Assist
+điều khiển thiết bị đã bật **Cài đặt → Trợ lý giọng nói → Chia sẻ**. Tuỳ chọn:
+
+- **Từ mở đầu**: ví dụ `nhà ơi` → chỉ câu *"nhà ơi bật đèn cửa"* mới gửi sang Assist.
+- **Đọc kết quả bằng TTS**: chọn một dịch vụ TTS để loa đọc câu trả lời của Assist.
+
+Loa vẫn tự trả lời theo cách của MAIKA (có thể nói "chưa hiểu") vì câu lệnh cũng đi tới trợ lý
+MAIKA; thiết bị vẫn được bật/tắt bởi Assist.
+
+Không muốn dùng tuỳ chọn có sẵn? Automation tương đương:
+
+```yaml
+triggers:
+  - trigger: event
+    event_type: maika_direct_voice_command
+actions:
+  - action: conversation.process
+    data:
+      text: "{{ trigger.event.data.text }}"
+      language: vi
+```
+
 ## Ví dụ automation
 
 **Nói với loa → bật đèn trong HA**

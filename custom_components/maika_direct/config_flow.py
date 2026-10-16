@@ -126,6 +126,7 @@ class MaikaDirectOptionsFlow(OptionsFlow):
             else:
                 return self.async_create_entry(
                     data={
+                        **self.config_entry.options,
                         CONF_MEDIA_BASE_URL: base,
                         CONF_SCAN_INTERVAL: int(user_input[CONF_SCAN_INTERVAL]),
                     }

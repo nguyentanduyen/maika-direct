@@ -90,4 +90,9 @@ class MaikaTextSensor(MaikaEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         info = self._info()
-        return {"full_text": info.get("text"), "timestamp": info.get("time")} if info else {}
+        if not info:
+            return {}
+        attrs = {"full_text": info.get("text"), "timestamp": info.get("time")}
+        if info.get("assist"):
+            attrs["assist"] = info["assist"]
+        return attrs

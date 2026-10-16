@@ -19,6 +19,9 @@ CONF_CLIENT_ID = "client_id"
 CONF_SESSION_ID = "session_id"
 CONF_MEDIA_BASE_URL = "media_base_url"
 CONF_SCAN_INTERVAL = "scan_interval"
+CONF_ASSIST_FORWARD = "assist_forward"
+CONF_ASSIST_PREFIX = "assist_prefix"
+CONF_ASSIST_TTS = "assist_tts"
 
 DEFAULT_SCAN_INTERVAL = 60
 
@@ -26,6 +29,7 @@ DEVICE_INFO_FIELDS = "current_playback,volume,latest_playlist,device_id,mute"
 
 EVENT_VOICE_COMMAND = f"{DOMAIN}_voice_command"
 EVENT_SPEAKER_RESPONSE = f"{DOMAIN}_speaker_response"
+EVENT_ASSIST_RESULT = f"{DOMAIN}_assist_result"
 
 SERVICE_SEND_TEXT = "send_text"
 ATTR_TEXT = "text"
